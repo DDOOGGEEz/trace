@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Blockchain Tracer</title>
+	<link rel="stylesheet" href="scripts/libs/materialize.min.css">
+	<link rel="stylesheet" href="scripts/libs/icons.css">
+	<style>
+		body {overflow: hidden; background: #040404; font-size: .75em}
+
+		input {font-size: 1.25em !important}
+
+		#ui {position: absolute; top: 2em; left: 0; right: 0; z-index: 1000; opacity: 0.9}
+
+		@media (max-width: 800px) {
+			#ui {min-width: 90%}
+		}
+		@media (max-width: 1200px) {
+			#ui {min-width: 80%}
+		}
+
+		.card.minimal {padding: 0}
+		.card.minimal > * {background: none; padding: 0; margin: 0}
+		.card.minimal > * .input-field, .card.minimal * > .range-field {margin: 0}
+		.card.minimal > * .input-field > input, .card.minimal > * .input-field > .select-wrapper > input {margin-bottom: 0; border-bottom: 0}
+		.card.minimal > * .range-field > input {margin-top: 1.25em}
+		.card.minimal > * .btn {height: 100%; transform: scale(1.5)}
+		.card.minimal > * .range-field > label, .card.minimal > * .switch > label {position: absolute; top: -2em}
+
+		.row .col {padding: 0 .25rem}
+
+		#canvas {overflow: visible !important}
+
+		#tooltip {position: absolute; display: none; max-width: 450px;}
+		#tooltip > * {padding: 12px}
+		#tooltip-body {overflow:auto; max-height: 300px;}
+
+		.switch label .lever {margin: 0}
+
+		#dropdown * {font-size: 1.1em !important}
+		#dropdown i {margin: 0 !important}
+
+		.dropdown-content {width: fit-content !important; height: auto !important; margin-top: 3em}
+		#toast-container {top: auto; bottom: 2%; left: 0; right: 0; margin: auto; max-width: fit-content}
+	</style>
+</head>
+<body>
+	<div id="ui" class="container row">
+		<div class="card minimal col s4">
+			<div class="card-action row">
+				<form onsubmit="event.preventDefault(); trace(this[0].value)">
+					<div class="input-field col s10">
+						<input placeholder="Address/Transaction Hash" id="hash" type="text" value="1AJbsFZ64EpEfS5UAjAfcUG8pH8Jn3rn1F">
+					</div>
+					<button class="btn waves-effect waves-light col s2" type="submit" name="action" style="transform: scale(1.2) translate(1px, 2px)"><i class="material-icons">arrow_forward</i></button>
+				</form>
+			</div>
+		</div>
+
+		<div class="col s1"></div>
+
+		<div class="card minimal col s6">
+			<div class="card-action row">
+				<div class="input-field col s2">
+					<select onchange="updateFillStyle(parseInt(this.value))">
+						<option value="0">Distance</option>
+						<option value="1">Mono</option>
+						<option value="2">Poison</option>
+						<option value="3">Haircut</option>
+						<option value="4">FIFO</option>
+					</select>
+					<label style="position: absolute; top: -3em">Colour</label>
+				</div>
+
+				<div class="input-field col s3">
+					<input type="text" class="datepicker" value="2008/01/01" onchange="dateMin = new Date(this.value).getTime()/1000">
+					<label style="position: absolute; top: -0.6em">From</label>
+				</div>
+
+				<div class="input-field col s3">
+					<input type="text" class="datepicker" value="2025/01/01" onchange="dateMax = new Date(this.value).getTime()/1000">
+					<label style="position: absolute; top: -0.6em">To</label>
+				</div>
+
+				<div class="switch col s2">
+					<label>
+						Invert<br/><br/>
+						<input type="checkbox" checked onchange="document.getElementsByTagName('body')[0].style.background = !this.checked ? 'white' : 'black'" />
+						<span class="lever"></span>
+					</label>
+				</div>
+
+				<div class="switch col s2">
+					<label>
+						Run<br/><br/>
+						<input type="checkbox" checked onchange="this.checked ? simulation.velocityDecay(0.97) : simulation.velocityDecay(1)" />
+						<span class="lever"></span>
+					</label>
+				</div>
+			</div>
+		</div>
+		<!-- Dropdown Trigger -->
+		<a class='dropdown-trigger btn-flat col s1' href='#' data-target='dropdown'><i class="material-icons" style="color: #aaa; font-size: 3em; margin-top: 0.3em">more_vert</i></a>
+	</div>
+
+	<svg id="canvas"></svg>
+
+	<div id="tooltip" class="card">
+		<div class="card-content">
+			<h6 id="tooltip-title">Unknown</h6>
+			<p id="tooltip-value">Unknown</p>
+		</div>
+		<div class="card-tabs">
+			<ul class="tabs tabs-fixed-width">
+				<li class="tab"><a href="#tooltip-all" class="active"><span id="tooltip-allcount"></span> Total</a></li>
+				<li class="tab"><a href="#tooltip-in"><span id="tooltip-incount"></span> Incoming</a></li>
+				<li class="tab"><a href="#tooltip-out"><span id="tooltip-outcount"></span> Outgoing</a></li>
+			</ul>
+		</div>
+		<div class="card-content grey lighten-4" id="tooltip-body">
+			<div id="tooltip-log"></div>
+		</div>
+	</div>
+
+	<!-- Dropdown Structure -->
+	<ul id='dropdown' class='dropdown-content'>
+		<li><a href="javascript:copyToClipboard(window.location); M.toast({html: 'Copied to Clipboard'})">Share<i class="material-icons left">share</i></a></li>
+		<li><a href="javascript:saveSvg(document.getElementById('canvas'), 'graph.svg')">Graph<i class="material-icons left">file_download</i></a></li>
+		<li><a href="javascript:saveText(JSON.stringify([nodes, links]), 'data.json');">Data<i class="material-icons left">file_download</i></a></li>
+		<li class="divider" tabindex="-1"></li>
+		<li><a href="https://mattconsto.github.io/blockchain-tracer/report.pdf" target="_blank">Report<i class="material-icons left">launch</i></a></li>
+		<li><a href="#modal-help" class="modal-trigger">Help<i class="material-icons left">help_outline</i></a></li>
+		<li><a href="#modal-about" class="modal-trigger">About<i class="material-icons left">info_outline</i></a></li>
+		<li class="divider" tabindex="-1"></li>
+		<li><a href="#">Close<i class="material-icons left">close</i></a></li>
+	</ul>
+
+	<div id="modal-help" class="modal">
+		<div class="modal-content">
+		<h4>Help</h4>
+		<ul class="browser-default" style="padding-left: 1.5em">
+			<li>Use your mouse to pan and zoom around the graph.</li>
+			<li>Hover over nodes to see information, click on them to explore the blockchain.</li>
+			<li>Trace a transaction by clicking on it in the popup.</li>
+			<li>Use Shift + T to toggle tooltips.</li>
+			<li>Have fun!</li>
+		</ul>
+		</div>
+		<div class="modal-footer">
+			<a href="#!" class="modal-close waves-effect waves-green btn-flat">Close</a>
+		</div>
+	</div>
+
+	<div id="modal-about" class="modal">
+		<div class="modal-content">
+		<h4>About</h4>
+		<p>Created by <a href="https://consto.uk">Matthew Consterdine</a>, Dennis Parkchov, and Altay Adademir for Computational Finance at the <a href="https://southampton.ac.uk">University of Southampton</a>.</p>
+		<p>Powered by <a href="https://blockchain.info">Blockchain.info<a href="https://d3js.org">D3.js</a>.</p>
+		<p>Powered by <a href="https://www.oklink.com/zh-hans">Oklink.com</p>
+		</div>
+		<div class="modal-footer">
+			<a href="#!" class="modal-close waves-effect waves-green btn-flat">Close</a>
+		</div>
+	</div>
+</body>
+	<script>
+		if (/MSIE (\d+\.\d+);/.test(navigator.userAgent) || navigator.userAgent.indexOf("Trident/") > -1) {
+			document.getElementsByTagName("body")[0].style.display = "none";
+			alert("Please upgrade to a modern browser to use Blockchain Tracer");
+		}
+	</script>
+	<script src="scripts/libs/d3.v4.min.js"></script>
+	<script src="scripts/libs/materialize.min.js"></script>
+	<script src="scripts/graph.js"></script>
+	<script src="scripts/blockchain.js"></script>
+	<script src="scripts/tags.json"></script>
+	<script src="scripts/init.js"></script>
+</html>
