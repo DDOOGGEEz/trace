@@ -112,6 +112,7 @@ var cachedJSONAsync = function(url, callback, error) {
 
 var lookup = function(input, offset, callback, error) {
     input = input.trim();
+
     // 判斷是否是比特幣交易哈希（64 位十六進位）
     if (/^[0-9a-fA-F]{64}$/.test(input)) {
         // 比特幣交易查詢
@@ -127,8 +128,8 @@ var lookup = function(input, offset, callback, error) {
     }
     // 以太坊地址查詢
 	else if (/^0x[a-fA-F0-9]{40}$/.test(input)) {
-    var apiKey = process.env.OKLINK_apikey;  // 替換為你的 OKLink API 密鑰
-    var url = `https://www.oklink.com/api/v5/explorer/address/transaction-list?chainShortName=eth&address=${input}&limit=10`;
+    var apiKey = 'c016fb71-21bb-469e-b8bd-9243950461b3';  // 替換為你的 OKLink API 密鑰
+    var url = `https://www.oklink.com/api/v5/explorer/address/transaction-list?chainShortName=eth&address=${input}&limit=20`;
 
     var request = new XMLHttpRequest();
     request.open("GET", url, true);
@@ -154,8 +155,8 @@ var lookup = function(input, offset, callback, error) {
 	// TRON 地址查詢
 	else if (/^T[a-zA-Z0-9]{33}$/.test(input)) {
     var chainShortName = 'TRON'; // TRON 鏈
-    var apiKey = process.env.OKLINK_apikey;
-    var url = `https://www.oklink.com/api/v5/explorer/address/transaction-list?chainShortName=${chainShortName}&address=${input}&limit=10`;
+    var apiKey = 'c016fb71-21bb-469e-b8bd-9243950461b3';
+    var url = `https://www.oklink.com/api/v5/explorer/address/transaction-list?chainShortName=${chainShortName}&address=${input}&limit=20`;
 
     var request = new XMLHttpRequest();
     request.open("GET", url, true);

@@ -127,8 +127,21 @@ function updateGraph() {
 		.enter()
 		.append('circle')
 		.attr('r', function(node) {
-			var balance = (discoveredAddresses.has(node.id) ? discoveredAddresses.get(node.id)["final_balance"] : estimatedAddreses.get(node.id)) / 100000000.0
-			return Math.log(Math.max(1, balance)) * 10 + 10
+			var balance;
+			var chainType = node.chainType || 'BTC'; // 默認為 BTC
+		
+			if (chainType === 'BTC') {
+				// BTC 的計算方法
+				balance = (discoveredAddresses.has(node.id) ? discoveredAddresses.get(node.id)["final_balance"] : estimatedAddreses.get(node.id)) / 100000000.0;
+				return Math.log(Math.max(1, balance)) * 10 + 10; // BTC 節點大小計算
+			} else if(chainType === 'ETH'){
+				// 其他鏈的計算方法 (例如 ETH 或 TRON)
+				balance = (discoveredAddresses.has(node.id) ? discoveredAddresses.get(node.id)["final_balance"] : estimatedAddreses.get(node.id));
+				return Math.log(Math.max(1, balance)) * 2 + 8; // 調整係數來控制大小
+			} else {
+				balance = (discoveredAddresses.has(node.id) ? discoveredAddresses.get(node.id)["final_balance"] : estimatedAddreses.get(node.id));
+				return Math.log(Math.max(1, balance)) + 5; // 調整係數來控制大小
+			}
 		})
 		.attr('id', function(node) { return 'node_' + node.id })
 		.attr('fill', function(node) {
@@ -268,7 +281,7 @@ function updateGraph() {
 			tooltipActive = false;
 			setTimeout(function() {
 				if (!tooltipActive) tooltip.style("display", "none");
-			}, 500);
+			}, 100);
 			d3.selectAll(".connects_" + d.id).attr('opacity', '0.25');
 		});
 
@@ -281,7 +294,9 @@ document.getElementById('tooltip').addEventListener("mouseenter", function() {
 document.getElementById('tooltip').addEventListener("mouseleave", function() {
 	tooltipActive = false
 })
-
+document.getElementById('tooltip-close').addEventListener('click', function() {
+    document.getElementById('tooltip').style.display = 'none';
+});
 function KeyPress(e) {
     var evtobj = window.event? event : e
     if (evtobj.keyCode == 84 && evtobj.shiftKey) toggleTooltip();
