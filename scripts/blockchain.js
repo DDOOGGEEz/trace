@@ -128,7 +128,7 @@ var lookup = function(input, offset, callback, error) {
     }
     // 以太坊地址查詢
 	else if (/^0x[a-fA-F0-9]{40}$/.test(input)) {
-    var apiKey = 'c016fb71-21bb-469e-b8bd-9243950461b3';  // 替換為你的 OKLink API 密鑰
+    var apiKey = 'apikey';  // 替換為你的 OKLink API 密鑰
     var url = `https://www.oklink.com/api/v5/explorer/address/transaction-list?chainShortName=eth&address=${input}&limit=20`;
 
     var request = new XMLHttpRequest();
@@ -155,7 +155,7 @@ var lookup = function(input, offset, callback, error) {
 	// TRON 地址查詢
 	else if (/^T[a-zA-Z0-9]{33}$/.test(input)) {
     var chainShortName = 'TRON'; // TRON 鏈
-    var apiKey = 'c016fb71-21bb-469e-b8bd-9243950461b3';
+    var apiKey = 'apikey';
     var url = `https://www.oklink.com/api/v5/explorer/address/transaction-list?chainShortName=${chainShortName}&address=${input}&limit=20`;
 
     var request = new XMLHttpRequest();
