@@ -110,77 +110,122 @@ var cachedJSONAsync = function(url, callback, error) {
 	}, error)
 }
 
+var selectedChainType = "BTC";  // 預設選擇BTC
+var errorDisplayed = false;  // 標記是否已顯示錯誤
+
+// 監聽選單變更
+function changeChainType(chainType) {
+    selectedChainType = chainType;
+    errorDisplayed = false; // 切換鏈時重置錯誤顯示
+}
+
 var lookup = function(input, offset, callback, error) {
     input = input.trim();
 
-    // 判斷是否是比特幣交易哈希（64 位十六進位）
-    if (/^[0-9a-fA-F]{64}$/.test(input)) {
-        // 比特幣交易查詢
-        cachedJSONAsync("https://blockchain.info/rawtx/" + input + "?cors=true", function(transaction) {
-            // 提取交易輸入的地址，並重新查詢
-            lookup(transaction["inputs"][0]["prev_out"]["addr"], 0, callback, error);
-        }, error);
-    }
-    // 判斷是否為比特幣地址 (P2PKH, P2SH, Bech32)
-    else if (/^(1[1-9A-HJ-NP-Za-km-z]{25,34})$/.test(input) || /^(3[1-9A-HJ-NP-Za-km-z]{25,34})$/.test(input) || /^(bc1[a-zA-HJ-NP-Z0-9]{39,59})$/.test(input)) {
-        // 比特幣地址查詢
-        cachedJSONAsync("https://blockchain.info/multiaddr?active=" + input + "&n=100&offset=" + offset + "&cors=true", callback, error);
-    }
-    // 以太坊地址查詢
-	else if (/^0x[a-fA-F0-9]{40}$/.test(input)) {
-    var apiKey = 'apikey';  // 替換為你的 OKLink API 密鑰
-    var url = `https://www.oklink.com/api/v5/explorer/address/transaction-list?chainShortName=eth&address=${input}&limit=20`;
-
-    var request = new XMLHttpRequest();
-    request.open("GET", url, true);
-    request.setRequestHeader("OK-ACCESS-KEY", apiKey);
-    request.onreadystatechange = function() {
-        if (request.readyState == 4) {
-            if (request.status == 200) {
-                var data = JSON.parse(request.responseText);
-                if (data.code === "0" && data.data.length > 0) {
-                    processTransactions(data.data[0].transactionLists, 'ETH'); // 傳遞 'ETH' 作為 chainType
-                    callback(data);
-                } else {
-                    error("沒有找到交易或無效地址");
-                }
-            } else {
-                error(request.statusText);
-            }
+    function showErrorMessage(message) {
+        if (!errorDisplayed) {
+            M.toast({html: message, displayLength: 3000});
+            console.warn(message);  // 顯示在控制台以供開發者檢查
+            errorDisplayed = true;  // 設置為已顯示錯誤
         }
-    };
-    request.send();
-	}
+    }
 
-	// TRON 地址查詢
-	else if (/^T[a-zA-Z0-9]{33}$/.test(input)) {
-    var chainShortName = 'TRON'; // TRON 鏈
-    var apiKey = 'apikey';
-    var url = `https://www.oklink.com/api/v5/explorer/address/transaction-list?chainShortName=${chainShortName}&address=${input}&limit=20`;
-
-    var request = new XMLHttpRequest();
-    request.open("GET", url, true);
-    request.setRequestHeader("OK-ACCESS-KEY", apiKey);
-    request.onreadystatechange = function() {
-        if (request.readyState == 4) {
-            if (request.status == 200) {
-                var data = JSON.parse(request.responseText);
-                if (data.code === "0" && data.data.length > 0) {
-                    processTransactions(data.data[0].transactionLists, 'TRON'); // 傳遞 'TRON' 作為 chainType
-                    callback(data);
-                } else {
-                    error("沒有找到交易或無效地址");
-                }
-            } else {
-                error(request.statusText);
-            }
+    if (selectedChainType === "BTC") {
+        // BTC查詢邏輯
+        if (/^[0-9a-fA-F]{64}$/.test(input)) {
+            cachedJSONAsync("https://blockchain.info/rawtx/" + input + "?cors=true", function(transaction) {
+                lookup(transaction["inputs"][0]["prev_out"]["addr"], 0, callback, error);
+            }, function() { showErrorMessage("無效的BTC交易哈希"); });
+        } else if (/^(1[1-9A-HJ-NP-Za-km-z]{25,34})$/.test(input) || /^(3[1-9A-HJ-NP-Za-km-z]{25,34})$/.test(input) || /^(bc1[a-zA-HJ-NP-Z0-9]{39,59})$/.test(input)) {
+            cachedJSONAsync("https://blockchain.info/multiaddr?active=" + input + "&n=100&offset=" + offset + "&cors=true", callback, function() { showErrorMessage("無效的BTC地址"); });
+        } else {
+            showErrorMessage("無效的BTC地址格式");
         }
-    };
-    request.send();
-	}
-    // 如果是其他不支援的鏈
-    else {
-        error("不支援的鏈類型或無效地址！");
+    } else if (selectedChainType === "ETH") {
+        // ETH查詢邏輯
+        if (/^0x[a-fA-F0-9]{40}$/.test(input)) {
+            var apiKey = 'c016fb71-21bb-469e-b8bd-9243950461b3';
+            var url = `https://www.oklink.com/api/v5/explorer/address/transaction-list?chainShortName=eth&address=${input}&limit=20`;
+            var request = new XMLHttpRequest();
+            request.open("GET", url, true);
+            request.setRequestHeader("OK-ACCESS-KEY", apiKey);
+            request.onreadystatechange = function() {
+                if (request.readyState == 4) {
+                    if (request.status == 200) {
+                        var data = JSON.parse(request.responseText);
+                        if (data.code === "0" && data.data.length > 0) {
+                            processTransactions(data.data[0].transactionLists, 'ETH');
+                            callback(data);
+                        } else {
+                            showErrorMessage("沒有找到交易或無效的ETH地址");
+                        }
+                    } else {
+                        showErrorMessage(request.statusText);
+                    }
+                }
+            };
+            request.send();
+        } else {
+            showErrorMessage("無效的ETH地址格式");
+        }
+    } else if (selectedChainType === "TRON") {
+        // TRON查詢邏輯
+        if (/^T[a-zA-Z0-9]{33}$/.test(input)) {
+            var apiKey = 'c016fb71-21bb-469e-b8bd-9243950461b3';
+            var usdtContractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+            var url = `https://www.oklink.com/api/v5/explorer/address/transaction-list?chainShortName=TRON&address=${input}&protocolType=token_20&tokenContractAddress=${usdtContractAddress}&limit=20`;
+            var request = new XMLHttpRequest();
+            request.open("GET", url, true);
+            request.setRequestHeader("OK-ACCESS-KEY", apiKey);
+            request.onreadystatechange = function() {
+                if (request.readyState == 4) {
+                    if (request.status == 200) {
+                        var data = JSON.parse(request.responseText);
+                        if (data.code === "0" && data.data.length > 0) {
+                            processTransactions(data.data[0].transactionLists, 'TRON');
+                            callback(data);
+                        } else {
+                            showErrorMessage("沒有找到交易或無效的TRON地址");
+                        }
+                    } else {
+                        showErrorMessage(request.statusText);
+                    }
+                }
+            };
+            request.send();
+        } else {
+            showErrorMessage("無效的TRON地址格式");
+        }
+    } else if (selectedChainType === "BSC") {
+        // BSC查詢邏輯
+        if (/^0x[a-fA-F0-9]{40}$/.test(input)) {
+            var apiKey = 'c016fb71-21bb-469e-b8bd-9243950461b3';
+            var bscContractAddress = '0x55d398326f99059fF775485246999027B3197955';
+            var url = `https://www.oklink.com/api/v5/explorer/address/transaction-list?chainShortName=bsc&address=${input}&protocolType=token_20&tokenContractAddress=${bscContractAddress}&limit=20`;
+            var request = new XMLHttpRequest();
+            request.open("GET", url, true);
+            request.setRequestHeader("OK-ACCESS-KEY", apiKey);
+            request.onreadystatechange = function() {
+                if (request.readyState == 4) {
+                    if (request.status == 200) {
+                        var data = JSON.parse(request.responseText);
+                        if (data.code === "0" && data.data.length > 0) {
+                            processTransactions(data.data[0].transactionLists, 'BSC');
+                            callback(data);
+                        } else {
+                            showErrorMessage("沒有找到交易或無效的BSC地址");
+                        }
+                    } else {
+                        showErrorMessage(request.statusText);
+                    }
+                }
+            };
+            request.send();
+        } else {
+            showErrorMessage("無效的BSC地址格式");
+        }
+    } else {
+        showErrorMessage("不支援的鏈類型或無效地址！");
     }
 };
 
@@ -188,26 +233,43 @@ var lookup = function(input, offset, callback, error) {
 // 處理不同鏈的交易
 function processTransactions(transactions, chainType) {
     transactions.forEach(function(tx) {
-        var source, target, value, hash;
+        let source, target, value, hash;
+        let timestamp;
 
         // 根據不同的鏈處理不同的交易格式
         if (chainType === 'BTC') {
+            timestamp = tx.time * 1000;
             source = tx.inputs[0].prev_out.addr;  // BTC 的來源地址
             target = tx.out[0].addr;              // BTC 的目標地址
             value = parseFloat(tx.out[0].value) / 100000000;  // BTC 轉換為比特幣單位
             hash = tx.hash;  // BTC 的交易哈希
-        } else if (chainType === 'ETH' || chainType === 'TRON') {
-            source = tx.from;  // ETH 和 TRON 的來源地址
-            target = tx.to;    // ETH 和 TRON 的目標地址
-            value = parseFloat(tx.amount);  // ETH 和 TRON 直接使用 amount 欄位
-            hash = tx.txId;  // ETH 和 TRON 的交易哈希
-        }
+        } else if (chainType === 'ETH') {
+            timestamp = tx.transactionTime;
+            source = tx.from;  // ETH 的來源地址
+            target = tx.to;    // ETH 的目標地址
+            value = parseFloat(tx.amount);  // ETH 使用 amount 欄位
+            hash = tx.txId;  // ETH 的交易哈希
+        } else if (chainType === 'TRON') { // USDT on TRON (TRC20)
+            timestamp = tx.transactionTime;
+            source = tx.from;  // TRON 的來源地址
+            target = tx.to;    // TRON 的目標地址
+            value = parseFloat(tx.amount);  // TRC20 使用 amount 欄位
+            hash = tx.txId;  // TRC20 的交易哈希
+        } else if (chainType === 'BSC') { // USDT on TRON (TRC20)
+            timestamp = tx.transactionTime;
+            source = tx.from;  // BSC 的來源地址
+            target = tx.to;    // BSC 的目標地址
+            value = parseFloat(tx.amount);  // BSC 使用 amount 欄位
+            hash = tx.txId;  // BSC20 的交易哈希
+		}
+        // 日期篩選邏輯
+        if (timestamp < dateMin * 1000 || timestamp > dateMax * 1000) return; // 確保與 dateMin/dateMax 比較正確
 
         // 如果交易值大於 0，處理交易
         if (value > 0) {
-            var defaultDistance = 1; // 默認 distance 設為 1
-            var labelSource = source; // 對 source 和 target 設置 label
-            var labelTarget = target;
+            const defaultDistance = 1;
+            const labelSource = source;
+            const labelTarget = target;
 
             // 檢查並設置 source 節點
             if (!discoveredAddresses.has(source)) {
@@ -217,7 +279,7 @@ function processTransactions(transactions, chainType) {
                     group: chainType === 'ETH' ? 1 : 2, 
                     chainType: chainType, 
                     distance: defaultDistance, 
-                    label: labelSource  // 設置 label
+                    label: labelSource  
                 });
             }
 
@@ -229,7 +291,7 @@ function processTransactions(transactions, chainType) {
                     group: chainType === 'ETH' ? 1 : 2, 
                     chainType: chainType, 
                     distance: defaultDistance, 
-                    label: labelTarget  // 設置 label
+                    label: labelTarget  
                 });
             }
 
@@ -242,9 +304,9 @@ function processTransactions(transactions, chainType) {
             }
 
             // 儲存交易到 linkedAddresses
-            linkedAddresses.get(source)["out"].set(hash, tx); // 儲存 out 的交易
-            linkedAddresses.get(target)["in"].set(hash, tx);  // 儲存 in 的交易
-            linkedAddresses.get(source)["all"].set(hash, tx); // 儲存所有相關交易
+            linkedAddresses.get(source)["out"].set(hash, tx); 
+            linkedAddresses.get(target)["in"].set(hash, tx);  
+            linkedAddresses.get(source)["all"].set(hash, tx); 
             linkedAddresses.get(target)["all"].set(hash, tx);
 
             // 添加交易的連接
@@ -364,142 +426,198 @@ var updateBlockchain = function(address, result, offset, distance) {
 
 testLocalStorage()
 
+// trace函數傳遞selectedChainType作為參數
 var trace = function(hash) {
-	M.toast({html: 'Loading ' + hash, displayLength: 2000})
+    M.toast({html: 'Loading ' + hash, displayLength: 2000});
+    errorDisplayed = false; // 開始新查詢時重置錯誤顯示
 
-	nodes = []
-	links = []
+    nodes = [];
+    links = [];
 
-	estimatedAddreses = new Map()
-	discoveredAddresses = new Map()
-	discoveredLinks = new Set()
-	linkedAddresses = new Map()
+    estimatedAddreses = new Map();
+    discoveredAddresses = new Map();
+    discoveredLinks = new Set();
+    linkedAddresses = new Map();
 
-	lookup(hash, 0, function(result) {updateBlockchain(hash, result, 0, 0)}, function(status) {
-		console.error("Error", status)
-		M.toast({html: "Error:" + status, displayLength: Infinity})
-	})
-	return false
-}
+    lookup(hash, 0, function(result) {updateBlockchain(hash, result, 0, 0)}, function(status) {
+        console.error("Error", status);
+        showErrorMessage("Error: " + status);
+    });
+    return false;
+};
 
 var traceTransactionOut = function(address, hash, index) {
-	// Fill the queue
-	var item = linkedAddresses.get(address)["all"].get(hash)
-	var firstelement = {"data": item["out"][index], "time": item["time"], "haircut": 1.0, "fifo": item["out"][index]["value"]}
-	var queue = new PriorityQueue()
-	var seen = new Set()
-	queue.push(firstelement)
-	seen.add(hash)
+    // 確保鏈結數據存在
+    var item = linkedAddresses.get(address)?.["all"]?.get(hash);
+    if (!item || !(item["out"] || item["to"])) return; // 檢查 undefined 問題
 
-	// Reset variables
-	taintedAddresses = new Map()
-	taintOrigin = address
-	taintValue = item["out"][index]["value"]
+    var transactionTime = item["time"] || item["transactionTime"] * 1000; // 適配時間戳記
+    var outData = item["out"]?.[index] || { to: item["to"], value: item["amount"] || 0 }; // 適配鏈結格式
 
-	// Go!
-	while(queue.size() > 0) {
-		var item = queue.pop()
+    var firstelement = {
+        "data": outData,
+        "time": transactionTime,
+        "haircut": 1.0,
+        "fifo": outData["value"] || 0
+    };
 
-		var balance = (discoveredAddresses.has(item["data"]["addr"]) ? discoveredAddresses.get(item["data"]["addr"])["final_balance"] : estimatedAddreses.get(item["data"]["addr"]))
-		var total = balance
-		var fifobalance = item["fifo"]
+    var queue = new PriorityQueue();
+    var seen = new Set();
+    queue.push(firstelement);
+    seen.add(hash);
 
-		if(linkedAddresses.has(item["data"]["addr"])) {
-			var transactions = Array.from(linkedAddresses.get(item["data"]["addr"])["out"].values())
-			transactions.sort(function(a, b) {return a["time"] - b["time"]})
+    // Reset variables
+    taintedAddresses = new Map();
+    taintOrigin = address;
+    taintValue = outData["value"] || 0;
 
-			for(var transaction of transactions) {
-				if(seen.has(transaction["hash"])) continue
-				seen.add(transaction["hash"])
-			
-				if(transaction["time"] > item["time"]) continue
+    // 遍歷所有交易
+    while (queue.size() > 0) {
+        var item = queue.pop();
+        var addr = item["data"]["addr"] || item["data"]["to"] || item["data"]["from"]; // 適配鏈結地址
+        if (!addr) continue;
 
-				for(var out of transaction["out"]) total += out["value"]
+        var balance = discoveredAddresses.has(addr)
+            ? discoveredAddresses.get(addr)?.["final_balance"]
+            : estimatedAddreses.get(addr) || 0;
+        var total = balance;
+        var fifobalance = item["fifo"];
 
-				for(var i = 0; i < transaction["out"].length; i++) {
-					var fifoout = Math.min(fifobalance, transaction["out"][i]["value"])
-					fifobalance -= fifoout
+        if (linkedAddresses.has(addr)) {
+            var transactions = Array.from(linkedAddresses.get(addr)?.["out"]?.values() || []);
+            transactions.sort((a, b) => (a["time"] || a["transactionTime"]) - (b["time"] || b["transactionTime"]));
 
-					queue.push({
-						"data": transaction["out"][i],
-						"time": transaction["time"],
-						"haircut": item["haircut"] * transaction["out"][i]["value"] / total,
-						"fifo": fifoout
-					})
-				}
-			}
-		}
+            for (var transaction of transactions) {
+                if (seen.has(transaction["hash"])) continue;
+                seen.add(transaction["hash"]);
 
-		if(!taintedAddresses.has(item["data"]["addr"])) {
-			taintedAddresses.set(item["data"]["addr"], {"poison": true, "haircut": item["haircut"] * balance / total, "fifo": fifobalance})
-		} else {
-			var oldvalues = taintedAddresses.get(item["data"]["addr"])
-			taintedAddresses.set(item["data"]["addr"], {"poison": true, "haircut": oldvalues["haircut"] + item["haircut"] * balance / total, "fifo": oldvalues["fifo"] + fifobalance})
-		}
-	}
+                var txTime = transaction["time"] || transaction["transactionTime"] * 1000;
+                if (txTime > item["time"]) continue;
 
-	// Update colouring, and switch to poison if on distance
-	if(fillStyle < 2) fillStyle = 2
-	updateFillStyle(fillStyle)
-}
+                for (var out of transaction["out"] || []) {
+                    total += out["value"] || 0;
+                }
+
+                for (var i = 0; i < (transaction["out"]?.length || 0); i++) {
+                    var fifoout = Math.min(fifobalance, transaction["out"][i]?.["value"] || 0);
+                    fifobalance -= fifoout;
+
+                    queue.push({
+                        "data": transaction["out"][i],
+                        "time": txTime,
+                        "haircut": item["haircut"] * (transaction["out"][i]["value"] || 0) / total,
+                        "fifo": fifoout
+                    });
+                }
+            }
+        }
+
+        // 更新 taintedAddresses
+        if (!taintedAddresses.has(addr)) {
+            taintedAddresses.set(addr, {
+                "poison": true,
+                "haircut": item["haircut"] * balance / total,
+                "fifo": fifobalance
+            });
+        } else {
+            var oldvalues = taintedAddresses.get(addr);
+            taintedAddresses.set(addr, {
+                "poison": true,
+                "haircut": oldvalues["haircut"] + item["haircut"] * balance / total,
+                "fifo": oldvalues["fifo"] + fifobalance
+            });
+        }
+    }
+
+    // 更新顏色填充
+    if (fillStyle < 2) fillStyle = 2;
+    updateFillStyle(fillStyle);
+};
 
 var traceTransactionIn = function(address, hash, index) {
-	// Fill the queue
-	var item = linkedAddresses.get(address)["all"].get(hash)
-	var firstelement = {"data": item["inputs"][index]["prev_out"], "time": item["time"], "haircut": 1.0, "fifo": item["inputs"][index]["prev_out"]["value"]}
-	var queue = new PriorityQueue()
-	var seen = new Set()
-	queue.push(firstelement)
-	seen.add(hash)
+    // 確保鏈結數據存在
+    var item = linkedAddresses.get(address)?.["all"]?.get(hash);
+    if (!item || !(item["inputs"] || item["from"])) return; // 檢查 undefined 問題
 
-	// Reset variables
-	taintedAddresses = new Map()
-	taintOrigin = address
-	taintValue = item["inputs"][index]["prev_out"]["value"]
+    var transactionTime = item["time"] || item["transactionTime"] * 1000; // 適配時間戳記
+    var inputData = item["inputs"]?.[index]?.["prev_out"] || { from: item["from"], value: item["amount"] || 0 }; // 適配鏈結格式
 
-	// Go!
-	while(queue.size() > 0) {
-		var item = queue.pop()
+    var firstelement = {
+        "data": inputData,
+        "time": transactionTime,
+        "haircut": 1.0,
+        "fifo": inputData["value"] || 0
+    };
 
-		var balance = (discoveredAddresses.has(item["data"]["addr"]) ? discoveredAddresses.get(item["data"]["addr"])["final_balance"] : estimatedAddreses.get(item["data"]["addr"]))
-		var total = balance
-		var fifobalance = item["fifo"]
+    var queue = new PriorityQueue();
+    var seen = new Set();
+    queue.push(firstelement);
+    seen.add(hash);
 
-		if(linkedAddresses.has(item["data"]["addr"])) {
-			var transactions = Array.from(linkedAddresses.get(item["data"]["addr"])["in"].values())
-			transactions.sort(function(a, b) {return a["time"] - b["time"]})
+    // Reset variables
+    taintedAddresses = new Map();
+    taintOrigin = address;
+    taintValue = inputData["value"] || 0;
 
-			for(var transaction of transactions) {
-				if(seen.has(transaction["hash"])) continue
-				seen.add(transaction["hash"])
-			
-				if(transaction["time"] < item["time"]) continue
+    // 遍歷所有交易
+    while (queue.size() > 0) {
+        var item = queue.pop();
+        var addr = item["data"]["addr"] || item["data"]["to"] || item["data"]["from"]; // 適配鏈結地址
+        if (!addr) continue;
 
-				for(var inpu of transaction["inputs"]) total += inpu["prev_out"]["value"]
+        var balance = discoveredAddresses.has(addr)
+            ? discoveredAddresses.get(addr)?.["final_balance"]
+            : estimatedAddreses.get(addr) || 0;
+        var total = balance;
+        var fifobalance = item["fifo"];
 
-				for(var i = 0; i < transaction["inputs"].length; i++) {
-					var fifoout = Math.min(fifobalance, transaction["inputs"][i]["prev_out"]["value"])
-					fifobalance -= fifoout
+        if (linkedAddresses.has(addr)) {
+            var transactions = Array.from(linkedAddresses.get(addr)?.["in"]?.values() || []);
+            transactions.sort((a, b) => (a["time"] || a["transactionTime"]) - (b["time"] || b["transactionTime"]));
 
-					queue.push({
-						"data": transaction["inputs"][i]["prev_out"],
-						"time": transaction["time"],
-						"haircut": item["haircut"] * transaction["inputs"][i]["prev_out"]["value"] / total,
-						"fifo": fifoout
-					})
-				}
-			}
-		}
+            for (var transaction of transactions) {
+                if (seen.has(transaction["hash"])) continue;
+                seen.add(transaction["hash"]);
 
-		if(!taintedAddresses.has(item["data"]["addr"])) {
-			taintedAddresses.set(item["data"]["addr"], {"poison": true, "haircut": item["haircut"] * balance / total, "fifo": fifobalance})
-		} else {
-			var oldvalues = taintedAddresses.get(item["data"]["addr"])
-			taintedAddresses.set(item["data"]["addr"], {"poison": true, "haircut": oldvalues["haircut"] + item["haircut"] * balance / total, "fifo": oldvalues["fifo"] + fifobalance})
-		}
-	}
+                var txTime = transaction["time"] || transaction["transactionTime"] * 1000;
+                if (txTime < item["time"]) continue;
 
-	// Update colouring, and switch to poison if on distance
-	if(fillStyle < 2) fillStyle = 2
-	updateFillStyle(fillStyle)
-}
+                for (var input of transaction["inputs"] || []) {
+                    total += input["prev_out"]?.["value"] || 0;
+                }
+
+                for (var i = 0; i < (transaction["inputs"]?.length || 0); i++) {
+                    var fifoout = Math.min(fifobalance, transaction["inputs"][i]?.["prev_out"]?.["value"] || 0);
+                    fifobalance -= fifoout;
+
+                    queue.push({
+                        "data": transaction["inputs"][i]["prev_out"],
+                        "time": txTime,
+                        "haircut": item["haircut"] * (transaction["inputs"][i]["prev_out"]?.["value"] || 0) / total,
+                        "fifo": fifoout
+                    });
+                }
+            }
+        }
+
+        // 更新 taintedAddresses
+        if (!taintedAddresses.has(addr)) {
+            taintedAddresses.set(addr, {
+                "poison": true,
+                "haircut": item["haircut"] * balance / total,
+                "fifo": fifobalance
+            });
+        } else {
+            var oldvalues = taintedAddresses.get(addr);
+            taintedAddresses.set(addr, {
+                "poison": true,
+                "haircut": oldvalues["haircut"] + item["haircut"] * balance / total,
+                "fifo": oldvalues["fifo"] + fifobalance
+            });
+        }
+    }
+
+    // 更新顏色填充
+    if (fillStyle < 2) fillStyle = 2;
+    updateFillStyle(fillStyle);
+};

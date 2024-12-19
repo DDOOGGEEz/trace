@@ -26,7 +26,8 @@
 		.card.minimal > * .range-field > input {margin-top: 1.25em}
 		.card.minimal > * .btn {height: 100%; transform: scale(1.5)}
 		.card.minimal > * .range-field > label, .card.minimal > * .switch > label {position: absolute; top: -2em}
-
+		
+		
 		.row .col {padding: 0 .25rem}
 
 		#canvas {overflow: visible !important}
@@ -50,17 +51,26 @@
 			<div class="card-action row">
 				<form onsubmit="event.preventDefault(); trace(this[0].value)">
 					<div class="input-field col s10">
-						<input placeholder="Address/Transaction Hash" id="hash" type="text" value="1AJbsFZ64EpEfS5UAjAfcUG8pH8Jn3rn1F">
+						<input placeholder="Address" id="hash" type="text" value="1AJbsFZ64EpEfS5UAjAfcUG8pH8Jn3rn1F">
 					</div>
 					<button class="btn waves-effect waves-light col s2" type="submit" name="action" style="transform: scale(1.2) translate(1px, 2px)"><i class="material-icons">arrow_forward</i></button>
 				</form>
 			</div>
 		</div>
-
+	
 		<div class="col s1"></div>
-
+	
 		<div class="card minimal col s6">
 			<div class="card-action row">
+				<div class="input-field col s2">
+					<select id="chainType" onchange="changeChainType(this.value)">
+						<option value="BTC">Bitcoin</option>
+						<option value="ETH">ETH</option>
+						<option value="TRON">USDT(TRON)</option>
+						<option value="BSC">USDT(BSC)</option>
+					</select>
+					<label style="position: absolute; top: -3em">Chain</label>
+				</div>
 				<div class="input-field col s2">
 					<select onchange="updateFillStyle(parseInt(this.value))">
 						<option value="0">Distance</option>
@@ -71,17 +81,17 @@
 					</select>
 					<label style="position: absolute; top: -3em">Colour</label>
 				</div>
-
-				<div class="input-field col s3">
+	
+				<div class="input-field col s2">
 					<input type="text" class="datepicker" value="2008/01/01" onchange="dateMin = new Date(this.value).getTime()/1000">
 					<label style="position: absolute; top: -0.6em">From</label>
 				</div>
-
-				<div class="input-field col s3">
+	
+				<div class="input-field col s2">
 					<input type="text" class="datepicker" value="2025/01/01" onchange="dateMax = new Date(this.value).getTime()/1000">
 					<label style="position: absolute; top: -0.6em">To</label>
 				</div>
-
+	
 				<div class="switch col s2">
 					<label>
 						Invert<br/><br/>
@@ -89,7 +99,7 @@
 						<span class="lever"></span>
 					</label>
 				</div>
-
+	
 				<div class="switch col s2">
 					<label>
 						Run<br/><br/>
@@ -99,10 +109,11 @@
 				</div>
 			</div>
 		</div>
+		
 		<!-- Dropdown Trigger -->
 		<a class='dropdown-trigger btn-flat col s1' href='#' data-target='dropdown'><i class="material-icons" style="color: #aaa; font-size: 3em; margin-top: 0.3em">more_vert</i></a>
 	</div>
-
+	
 	<svg id="canvas"></svg>
 
 	<div id="tooltip" class="card">
@@ -129,10 +140,10 @@
 		<li><a href="javascript:saveSvg(document.getElementById('canvas'), 'graph.svg')">Graph<i class="material-icons left">file_download</i></a></li>
 		<li><a href="javascript:saveText(JSON.stringify([nodes, links]), 'data.json');">Data<i class="material-icons left">file_download</i></a></li>
 		<li class="divider" tabindex="-1"></li>
-		<li><a href="https://mattconsto.github.io/blockchain-tracer/report.pdf" target="_blank">Report<i class="material-icons left">launch</i></a></li>
+		<!--<li><a href="https://mattconsto.github.io/blockchain-tracer/report.pdf" target="_blank">Report<i class="material-icons left">launch</i></a></li>
 		<li><a href="#modal-help" class="modal-trigger">Help<i class="material-icons left">help_outline</i></a></li>
 		<li><a href="#modal-about" class="modal-trigger">About<i class="material-icons left">info_outline</i></a></li>
-		<li class="divider" tabindex="-1"></li>
+		<li class="divider" tabindex="-1"></li>-->
 		<li><a href="#">Close<i class="material-icons left">close</i></a></li>
 	</ul>
 

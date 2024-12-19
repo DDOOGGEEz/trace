@@ -178,8 +178,12 @@ function updateGraph() {
 					break;
 				case 'TRON':
 					balance = (discoveredAddresses.has(d.id) ? discoveredAddresses.get(d.id)["final_balance"] : estimatedAddreses.get(d.id));
-					label = "<b>" + balance.toFixed(5).toLocaleString() + " TRX</b>";
+					label = "<b>" + balance.toFixed(5).toLocaleString() + " USDT</b>";
 					break;
+				case 'BSC':
+					balance = (discoveredAddresses.has(d.id) ? discoveredAddresses.get(d.id)["final_balance"] : estimatedAddreses.get(d.id));
+					label = "<b>" + balance.toFixed(5).toLocaleString() + " USDT</b>";
+					break;	
 				default:
 					balance = (discoveredAddresses.has(d.id) ? discoveredAddresses.get(d.id)["final_balance"] : estimatedAddreses.get(d.id)) / 100000000.0;
 					label = "<b>" + balance.toFixed(5).toLocaleString() + " BTC</b>";
@@ -208,12 +212,14 @@ function updateGraph() {
 			console.log("linkedData:", linkedData);
 			if (linkedData && linkedData["all"] instanceof Map) {
 				linkedData["all"].forEach(function (value, key, map) {
-					// 轉換交易時間為可讀格式（BTC 使用 `time`，ETH 和 TRON 使用 `transactionTime`）
+					// 轉換交易時間為可讀格式（BTC 使用 `time`，ETH、TRON 和 BSC 使用 `transactionTime`）
 					var timestamp, formattedDate;
 					if (chainType === 'BTC') {
 						timestamp = value.time * 1000;  // BTC 的時間是以秒為單位，需要轉換成毫秒
-					} else {
-						timestamp = value.transactionTime;
+					} else if (chainType === 'TRON') {
+						timestamp = value.transactionTime * 1000;  // TRON 和 BSC 需要轉換成毫秒
+					} else { // ETH
+						timestamp = value.transactionTime;  // ETH 已經是毫秒
 					}
 			
 					var date = new Date(parseInt(timestamp));
@@ -243,22 +249,22 @@ function updateGraph() {
 									"<small>時間: " + formattedDate + "</small><br />";  // 加上時間顯示
 							}
 						}
-					} else if (chainType === 'ETH' || chainType === 'TRON') {
-						// ETH 或 TRON 的處理邏輯 - 處理 `out`
+					} else if (chainType === 'ETH' || chainType === 'TRON' || chainType === 'BSC') {
+						// ETH、TRON(USDT) 和 BSC(USDT)的處理邏輯 - 處理 `out`
 						if (linkedData["out"].has(key)) {
 							var tx = linkedData["out"].get(key);
 							var amount = Math.floor(tx.amount * 100000) / 100000;  // 無條件捨去到小數點第五位
-							var txt = '<b>' + amount.toFixed(5) + '</b> ' + (chainType === 'ETH' ? 'ETH' : 'TRX');
+							var txt = '<b>' + amount.toFixed(5) + '</b> ' + (chainType === 'ETH' ? 'ETH' : 'USDT');
 							tx_log += "<button style='width: 100%; margin: 2px;' class=\"btn waves-effect waves-light red\" onclick=\"traceTransactionOut('" + d.id + "', '" + key + "'," + i + ")\" title=\"Trace\">" +
 								"<i class=\"material-icons left\">keyboard_arrow_left</i> " + txt + " (" + tx.to.trunc(10) + ")</button><br />" +
 								"<small>時間: " + formattedDate + "</small><br />";  // 加上時間顯示
 						}
 			
-						// ETH 或 TRON 的處理邏輯 - 處理 `in`
+						// ETH、TRON(USDT) 和 BSC(USDT)的處理邏輯 - 處理 `in`
 						if (linkedData["in"].has(key)) {
 							var txIn = linkedData["in"].get(key);
 							var amountIn = Math.floor(txIn.amount * 100000) / 100000;  // 無條件捨去到小數點第五位
-							var txtIn = '<b>' + amountIn.toFixed(5) + '</b> ' + (chainType === 'ETH' ? 'ETH' : 'TRX');
+							var txtIn = '<b>' + amountIn.toFixed(5) + '</b> ' + (chainType === 'ETH' ? 'ETH' : 'USDT');
 							tx_log += "<button style='width: 100%; margin: 2px;' class=\"btn waves-effect waves-light\" onclick=\"traceTransactionIn('" + d.id + "', '" + key + "'," + i + ")\" title=\"Trace\">" +
 								"<i class=\"material-icons left\">keyboard_arrow_right</i> " + txtIn + " (" + txIn.from.trunc(10) + ")</button><br />" +
 								"<small>時間: " + formattedDate + "</small><br />";  // 加上時間顯示
